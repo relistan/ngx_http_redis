@@ -299,10 +299,10 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
     /* Count have space required escape symbols. */
     escape = 2 * ngx_escape_uri(NULL, vv[1]->data, vv[1]->len, NGX_ESCAPE_REDIS);
 
-	/* We need to include the command length and the length
-	   of the command length in bytes */
+    /* We need to include the command length and the length
+       of the command length in bytes */
     get_len = sizeof("*2\r\n$3\r\nget\r\n$\r\n\r\n") - 1 + vv[1]->len + escape + (vv[1]->len / 10 + 1) - 1;
-	len += get_len;
+    len += get_len;
 
     /* Create temporary buffer for request with size len. */
     b = ngx_create_temp_buf(r->pool, len);
@@ -321,10 +321,10 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
     r->upstream->request_bufs = cl;
 
     /* Add "select " for request. */
-	b->last = ngx_snprintf(
-		b->last, get_len, "*2\r\n$6\r\nselect\r\n$%d\r\n",
-		vv[0]->len == 0 ? 1 : vv[0]->len
-	);
+    b->last = ngx_snprintf(
+        b->last, get_len, "*2\r\n$6\r\nselect\r\n$%d\r\n",
+        vv[0]->len == 0 ? 1 : vv[0]->len
+    );
 
     /* Get context redis_db from configuration file. */
     ctx = ngx_http_get_module_ctx(r, ngx_http_redis_module);
@@ -350,8 +350,8 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
     *b->last++ = CR; *b->last++ = LF;
 
 
-	/* Add "get" command with appropriate protocol information. */
-	b->last = ngx_snprintf(b->last, get_len, "*2\r\n$3\r\nget\r\n$%d\r\n", vv[1]->len);
+    /* Add "get" command with appropriate protocol information. */
+    b->last = ngx_snprintf(b->last, get_len, "*2\r\n$3\r\nget\r\n$%d\r\n", vv[1]->len);
 
     /* Get context redis_key from nginx.conf. */
     ctx = ngx_http_get_module_ctx(r, ngx_http_redis_module);

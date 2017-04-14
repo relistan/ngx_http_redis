@@ -129,14 +129,14 @@ http
 Thanks to:
 --
 
-Maxim Dounin
-Vsevolod Stakhov
-Ezra Zygmuntowicz
+* Maxim Dounin
+* Vsevolod Stakhov
+* Ezra Zygmuntowicz
 
 
 
 Special thanks to:
 --
-Evan Miller for his "Guide To Nginx Module Development" and "Advanced Topics
-In Nginx Module Development"
-Valery Kholodkov for his "Nginx modules development"
+* Evan Miller for his "Guide To Nginx Module Development" and "Advanced Topics
+  In Nginx Module Development"
+* Valery Kholodkov for his "Nginx modules development"

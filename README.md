@@ -1,5 +1,9 @@
-nginx HTTP redis module
---
+NGiNX HTTP Redis module
+=======================
+
+This is a fork of the 0.3.8 module, with updates to support the newer Redis
+protocol.  This allows it to work with many non-Redis implementations of the
+protocol that don't support the legacy protocol.
 
 Description:
 --
@@ -10,7 +14,6 @@ http://code.google.com/p/redis/.
 The redis protocol
 (http://code.google.com/p/redis/wiki/ProtocolSpecification)
 not yet fully implemented, but GET and SELECT commands only.
-
 
 
 Installation:

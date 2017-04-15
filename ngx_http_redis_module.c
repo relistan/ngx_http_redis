@@ -282,7 +282,8 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
                        "select 0 redis database" );
         len = sizeof("*2\r\n$6\r\nselect\r\n$1\r\n0\r\n") - 1;
     } else {
-        len = sizeof("*2\r\n$6\r\nselect\r\n$\r\n\r\n") - 1 + vv[0]->len + (vv[0]->len / 10 + 1);
+        int db_len = (vv[0]->len > 99 ? 3 : 2) + 1; 
+        len = sizeof("*2\r\n$6\r\nselect\r\n$\r\n\r\n") - 1 + vv[0]->len + db_len;
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "select %s redis database", vv[0]->data);
     }
@@ -300,8 +301,9 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
     escape = 2 * ngx_escape_uri(NULL, vv[1]->data, vv[1]->len, NGX_ESCAPE_REDIS);
 
     /* We need to include the command length and the length
-       of the command length in bytes */
-    get_len = sizeof("*2\r\n$3\r\nget\r\n$\r\n\r\n") - 1 + vv[1]->len + escape + (vv[1]->len / 10 + 1) - 1;
+       of the command length in bytes. Redis keys can be up to
+       2^31 which is ten digits in length so we just allocate that. */
+    get_len = sizeof("*2\r\n$3\r\nget\r\n$\r\n\r\n") - 1 + escape + 10;
     len += get_len;
 
     /* Create temporary buffer for request with size len. */

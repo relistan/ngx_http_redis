@@ -259,7 +259,7 @@ ngx_http_redis_handler(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_redis_create_request(ngx_http_request_t *r)
 {
-    size_t                          len, get_len;
+    size_t                          len, get_len, select_len;
     uintptr_t                       escape;
     ngx_buf_t                      *b;
     ngx_chain_t                    *cl;
@@ -280,13 +280,16 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
     if (vv[0] == NULL || vv[0]->not_found || vv[0]->len == 0) {
         ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "select 0 redis database" );
-        len = sizeof("*2\r\n$6\r\nselect\r\n$1\r\n0\r\n") - 1;
+        select_len = sizeof("*2\r\n$6\r\nselect\r\n$1\r\n0\r\n") - 1;
     } else {
-        int db_len = (vv[0]->len > 99 ? 3 : 2) + 1; 
-        len = sizeof("*2\r\n$6\r\nselect\r\n$\r\n\r\n") - 1 + vv[0]->len + db_len;
+		/* We have to pass the lengths of strings for the Redis protocol */
+        int db_len = (vv[0]->len > 99 ? 3 : 2); 
+        select_len = sizeof("*2\r\n$6\r\nselect\r\n$\r\n\r\n") - 1 + vv[0]->len + db_len;
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "select %s redis database", vv[0]->data);
     }
+
+	len = select_len;
 
     vv[1] = ngx_http_get_indexed_variable(r, rlcf->index);
 
@@ -303,8 +306,13 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
     /* We need to include the command length and the length
        of the command length in bytes. Redis keys can be up to
        2^31 which is ten digits in length so we just allocate that. */
-    get_len = sizeof("*2\r\n$3\r\nget\r\n$\r\n\r\n") - 1 + escape + 10;
+    get_len = sizeof("*2\r\n$3\r\nget\r\n$\r\n\r\n") - 1 + escape + 10 + vv[1]->len;
+
     len += get_len;
+
+    ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0,
+		"ngx_http_redis allocating %d", len
+	);
 
     /* Create temporary buffer for request with size len. */
     b = ngx_create_temp_buf(r->pool, len);
@@ -324,7 +332,7 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
 
     /* Add "select " for request. */
     b->last = ngx_snprintf(
-        b->last, get_len, "*2\r\n$6\r\nselect\r\n$%d\r\n",
+        b->last, select_len, "*2\r\n$6\r\nselect\r\n$%d\r\n",
         vv[0]->len == 0 ? 1 : vv[0]->len
     );
 
@@ -338,13 +346,13 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
      * othervise add real number from context.
      */
     if (vv[0] == NULL || vv[0]->not_found || vv[0]->len == 0) {
-        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+        ngx_log_debug0(NGX_LOG_DEBUG, r->connection->log, 0,
                        "select 0 redis database" );
         *b->last++ = '0';
     } else {
         b->last = ngx_copy(b->last, vv[0]->data, vv[0]->len);
         ctx->key.len = b->last - ctx->key.data;
-        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+        ngx_log_debug1(NGX_LOG_DEBUG, r->connection->log, 0,
                        "select %V redis database", &ctx->key);
     }
 
@@ -353,7 +361,7 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
 
 
     /* Add "get" command with appropriate protocol information. */
-    b->last = ngx_snprintf(b->last, get_len, "*2\r\n$3\r\nget\r\n$%d\r\n", vv[1]->len);
+    b->last = ngx_snprintf(b->last, get_len, "*2\r\n$3\r\nget\r\n$%d\r\n\r\n", vv[1]->len);
 
     /* Get context redis_key from nginx.conf. */
     ctx = ngx_http_get_module_ctx(r, ngx_http_redis_module);
@@ -373,13 +381,7 @@ ngx_http_redis_create_request(ngx_http_request_t *r)
                                             NGX_ESCAPE_REDIS);
     }
 
-    ctx->key.len = b->last - ctx->key.data;
-
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                   "http redis request: \"%V\"", &ctx->key);
-
-    /* Add one more "\r\n". */
-    *b->last++ = CR; *b->last++ = LF;
+    ctx->key.len = vv[1]->len;
 
     /*
      * Summary, the request looks like this:

@@ -537,6 +537,8 @@ found:
             h->lowcase_key = (u_char*) "content-encoding";
 #if defined(nginx_version) && (nginx_version <= 1021006) && (NGX_HTTP_GZIP)
             u->headers_in.content_encoding = h;
+#elif defined(nginx_version) && (nginx_version > 1021006)
+            r->headers_out.content_encoding = h;
 #endif
         }
 
